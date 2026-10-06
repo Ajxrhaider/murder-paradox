@@ -75,12 +75,16 @@ const OPENING_LINES: Record<SuspectId, string> = {
   celeste: "Ask your questions. I have already given my statement once.",
 };
 
-const SUGGESTED_QUESTIONS = [
-  "Where were you between 9:10 and 9:18?",
-  "Who carried the tea through the service hatch?",
-  "Did you handle the tea?",
-  "What was your relationship with Dr. Bell?",
-];
+function suggestedQuestions(caseFile: PublicGame["caseFile"]): string[] {
+  const scene = caseFile.location.split(" · ")[0] || caseFile.location;
+
+  return [
+    `Where were you around ${caseFile.timeOfDeath}?`,
+    `What did you see near ${scene}?`,
+    "Did you handle anything relevant to the incident?",
+    `What was your relationship with ${caseFile.victim}?`,
+  ];
+}
 
 function emptyConversations(): Record<SuspectId, ChatMessage[]> {
   return { mara: [], elias: [], celeste: [] };
@@ -377,7 +381,7 @@ export default function GameClient() {
             </button>
           ) : (
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Investigation 001
+              Case generator
             </span>
           )}
         </div>
@@ -507,7 +511,7 @@ function LandingPage({ onStart, busy }: { onStart: () => void; busy: boolean }) 
             <span className="text-primary">One lie.</span>
           </h1>
           <p className="mt-6 max-w-xl text-base leading-7 text-slate-400 sm:text-lg sm:leading-8">
-            Interview three people tied to a poisoned cup. Compare their accounts, catch the false alibi, and decide who killed Dr. Orin Bell.
+            Open a newly generated investigation, interview its three suspects, compare evidence-backed accounts, catch the one false alibi, and identify the killer.
           </p>
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
             <button
@@ -544,23 +548,23 @@ function LandingPage({ onStart, busy }: { onStart: () => void; busy: boolean }) 
               </span>
             </div>
             <div className="p-5 sm:p-7">
-              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">CASE 001 · BELLWETHER MUSEUM</p>
-              <h2 className="mt-2 font-heading text-3xl font-bold tracking-tight text-white sm:text-4xl">The Orchid House</h2>
+              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">20 SCENARIO FRAMEWORKS · PROCEDURALLY REMIXED</p>
+              <h2 className="mt-2 font-heading text-3xl font-bold tracking-tight text-white sm:text-4xl">A new case file awaits</h2>
               <p className="mt-3 text-sm leading-6 text-slate-400">
-                Dr. Orin Bell was found dead at 9:20 PM. Aconite in his tea. A dark camera feed. Three people with access to the wing.
+                Every investigation remixes a setting, victim, cast, motive, timeline, and clues. The killer and the one false-alibi witness are randomized independently.
               </p>
 
               <div className="mt-7 grid grid-cols-2 gap-3">
-                <DossierStat icon={<Clock3 size={16} />} label="Time of death" value="9:20 PM" />
-                <DossierStat icon={<MapPin size={16} />} label="Scene" value="Orchid House" />
-                <DossierStat icon={<FlaskConical size={16} />} label="Cause" value="Aconite" />
-                <DossierStat icon={<Fingerprint size={16} />} label="Witnesses" value="3 statements" />
+                <DossierStat icon={<Clock3 size={16} />} label="Timeline" value="Remixed" />
+                <DossierStat icon={<MapPin size={16} />} label="Scene" value="20 frameworks" />
+                <DossierStat icon={<FlaskConical size={16} />} label="Cause" value="Case-specific" />
+                <DossierStat icon={<Fingerprint size={16} />} label="Witnesses" value="2 true · 1 liar" />
               </div>
 
               <div className="mt-6 rounded-2xl border border-white/[0.07] bg-ink/60 p-4">
                 <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.17em] text-slate-500">
-                  <span>Service hatch</span>
-                  <span className="text-accent">9:14 PM</span>
+                  <span>Generated evidence</span>
+                  <span className="text-accent">Cast of 3</span>
                 </div>
                 <div className="mt-3 flex items-center gap-2" aria-hidden="true">
                   <span className="h-1.5 flex-1 rounded-full bg-slate-700" />
@@ -570,7 +574,7 @@ function LandingPage({ onStart, busy }: { onStart: () => void; busy: boolean }) 
                   <span className="h-1.5 flex-1 rounded-full bg-slate-700" />
                 </div>
                 <div className="mt-2 flex justify-between text-[10px] text-slate-600">
-                  <span>9:10</span><span>Camera outage</span><span>9:20</span>
+                  <span>New victim</span><span>Evidence trail</span><span>New verdict</span>
                 </div>
               </div>
             </div>
@@ -584,7 +588,7 @@ function LandingPage({ onStart, busy }: { onStart: () => void; busy: boolean }) 
 
       <section className="mt-16 grid gap-4 border-t border-white/[0.07] pt-8 sm:grid-cols-3">
         <FeatureCard number="01" title="Read the room" text="Each witness has a distinct voice, motive, and account of the night." />
-        <FeatureCard number="02" title="Compare the stories" text="Two interviews are truthful. One person repeats a single false alibi." />
+        <FeatureCard number="02" title="Compare the stories" text="Exactly two witnesses tell the truth; one repeats the same false alibi." />
         <FeatureCard number="03" title="Make the call" text="Choose a suspect when you are ready. Your verdict reveals both hidden roles." />
       </section>
     </div>
@@ -677,7 +681,7 @@ function InvestigationRoom({
                   {game.result.correct ? "Your deduction was right." : "The evidence points elsewhere."}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-slate-300">
-                  <span className="font-semibold text-white">{culprit.name}</span> killed Dr. Bell. {liar.name} was the one witness assigned to the false alibi.
+                  <span className="font-semibold text-white">{culprit.name}</span> killed {game.caseFile.victim}. {liar.name} was the one witness assigned to the false alibi.
                 </p>
               </div>
             </div>
@@ -710,9 +714,9 @@ function InvestigationRoom({
 
             <div className="mt-5 grid grid-cols-2 gap-2">
               <DossierStat icon={<Clock3 size={15} />} label="Time" value={game.caseFile.timeOfDeath} compact />
-              <DossierStat icon={<MapPin size={15} />} label="Location" value="Orchid House" compact />
-              <DossierStat icon={<FlaskConical size={15} />} label="Cause" value="Aconite" compact />
-              <DossierStat icon={<UserRound size={15} />} label="Victim" value="Dr. Bell" compact />
+              <DossierStat icon={<MapPin size={15} />} label="Location" value={game.caseFile.location} compact />
+              <DossierStat icon={<FlaskConical size={15} />} label="Cause" value={game.caseFile.cause} compact />
+              <DossierStat icon={<UserRound size={15} />} label="Victim" value={game.caseFile.victim} compact />
             </div>
 
             <div className="mt-5 border-t border-white/[0.07] pt-4">
@@ -856,7 +860,7 @@ function InvestigationRoom({
                 <div className="border-t border-white/[0.06] px-4 pt-4 sm:px-6">
                   <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-slate-600">Suggested questions</p>
                   <div className="flex gap-2 overflow-x-auto pb-3">
-                    {SUGGESTED_QUESTIONS.map((question) => (
+                    {suggestedQuestions(game.caseFile).map((question) => (
                       <button
                         key={question}
                         type="button"

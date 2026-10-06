@@ -34,6 +34,7 @@ export interface WitnessClaim {
 
 export interface HiddenWitness {
   id: SuspectId;
+  name: string;
   truthStatus: "truthful" | "liar";
   claims: WitnessClaim[];
 }
@@ -44,6 +45,8 @@ export interface GameState {
   expiresAt: number;
   killerId: SuspectId;
   liarId: SuspectId;
+  caseFile: CaseFile;
+  suspects: SuspectProfile[];
   witnesses: Record<SuspectId, HiddenWitness>;
   questionsUsed: number;
   questionsBySuspect: Record<SuspectId, number>;

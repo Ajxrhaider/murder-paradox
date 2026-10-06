@@ -1,6 +1,14 @@
 # Murder Paradox
 
-A small Next.js App Router mystery game: interview three witnesses, compare their accounts, and accuse the killer. Every case has a randomized culprit, two truthful witnesses, and one witness who repeats a single fixed false alibi.
+A Next.js App Router mystery game: interview three witnesses, compare their accounts, and accuse the killer. Every generated case has a randomized killer, exactly two truthful witnesses, and exactly one consistent liar who repeats a single fixed false alibi.
+
+## Case generation
+
+Cases are assembled at runtime rather than selected from a small list of finished stories. The generator currently has **20 scenario frameworks**, **24 suspect-role archetypes**, **12 time windows**, 48 first names, 48 last names, six victim honorifics, and reusable pools of motives, findings, trace evidence, and false-alibi locations. Each new case remixes the setting, victim, cast, motives, clues, timeline, killer, and liar.
+
+The core pools alone permit about **737 quintillion** combinations before adding victim honorifics, motives, evidence selections, and false-alibi locations. This is a finite procedural pool—not a promise that an exact story can never repeat—but it is far larger than a fixed sequence of hand-authored cases.
+
+Generation preserves the deduction structure: two witnesses receive only server-authored true claims, including observations that identify the killer's distinctive action; the liar receives one immutable false alibi, which is repeated for every interview question. The killer and liar are selected independently, so either can occupy the liar role without breaking the two-truth/one-lie rule.
 
 ## Stack
 
@@ -45,6 +53,7 @@ Run checks and start the development server:
 
 ```bash
 npm run lint
+npx tsc --noEmit
 npm run build
 npm run dev
 ```
@@ -53,10 +62,10 @@ Open <http://localhost:3000>.
 
 ## Game-state and AI integrity
 
-- `src/lib/game.ts` chooses the killer and liar independently with Node's cryptographic random number generator. It creates exactly one liar and two truthful witnesses, and asserts the two-truth invariant.
-- The hidden state is encrypted with AES-256-GCM and stored in a `Secure` (in production), `HttpOnly`, `SameSite=Strict` cookie. It is not included in the game-start or game-status JSON. It expires after 12 hours.
+- `src/lib/game.ts` uses Node's cryptographic random number generator to choose the case framework, victim, cast, distinct role archetypes, time window, clues, killer, and liar. It asserts the two-truth/one-liar invariant.
+- The hidden state is deflate-compressed, encrypted with AES-256-GCM, and stored in a `Secure` (in production), `HttpOnly`, `SameSite=Strict` cookie. It is not included in the game-start or game-status JSON. It expires after 12 hours; compression keeps the generated claim ledger safely below common browser cookie-size limits.
 - Gemini receives only the current witness's approved testimony ledger and the current question. It returns structured claim IDs and a tone, not free-form dialogue. The server checks the IDs and builds the witness's response from its own immutable claim text. A model hallucination therefore cannot change the case facts or switch the liar's alibi.
-- The liar's only case claim is a generated false alibi; the same false account is repeated for every interview question. Truthful witnesses use a true testimony ledger, including a direct clue about who carried the tea through the service hatch. The culprit can be either truthful or the liar.
+- Each truthful witness has a true timeline, motive, action statement, and observation. The guilty witness's true ledger includes an admission; the other truthful witnesses can identify the killer's generated action. The liar has only one generated false alibi, and it is repeated on every question, including off-topic or adversarial questions.
 - A player gets six questions per witness, then one final accusation. The answer is revealed only after the accusation.
 - Browser-visible conversation history is kept in `sessionStorage`; it contains only the chat already shown to the player, never hidden roles.
 - API keys are used only in server routes. Do not rename `GEMINI_API_KEY` to a `NEXT_PUBLIC_` variable.
@@ -89,12 +98,25 @@ The dynamic suffix explicitly marks the current witness `TRUTHFUL` or `LIAR` and
 
 ## API routes
 
-- `POST /api/game` — creates a fresh randomized case and writes its encrypted cookie.
+- `POST /api/game` — creates a freshly randomized case and writes its encrypted cookie.
 - `GET /api/game` — restores the active public case without returning the hidden killer or liar.
 - `POST /api/ask` — accepts `{ "suspectId": "mara", "question": "..." }`, calls Gemini, validates selected claim IDs, and returns the answer plus public question counts.
 - `POST /api/accuse` — accepts `{ "suspectId": "mara" }`, closes the case, and then reveals the culprit and liar.
 
-Valid suspect IDs are `mara`, `elias`, and `celeste`.
+The internal suspect IDs are `mara`, `elias`, and `celeste`; displayed names and roles are generated for each case.
+
+## Verify procedural generation
+
+Start the app in one terminal with `npm run dev` or `npm run start`. In another terminal, run:
+
+```bash
+cd ~/Documents/WWW/murder-paradox
+npm run verify:cases
+```
+
+The verifier creates and decrypts 300 fresh local game cookies, checks all three-suspect and two-truth/one-liar invariants, verifies truthful killer observations and the liar's false alibi, confirms public responses hide the roles, tests refresh and verdict reveal, and checks that the compressed encrypted cookie stays below common browser limits. At this sample size it also expects to encounter all 20 scenario frameworks and all 24 roles. It reads `GAME_STATE_SECRET` from the shell or `.env.local`; it does not contact Gemini.
+
+To choose another sample size, use `CASES_TO_VERIFY=50 npm run verify:cases`. Full scenario/role coverage assertions run when the sample is 300 cases or more.
 
 ## Smoke test with curl
 
@@ -117,7 +139,7 @@ Interview a suspect (change the question as desired):
 ```bash
 curl -i -c /tmp/murder-paradox.cookies -b /tmp/murder-paradox.cookies \
   -H 'Content-Type: application/json' \
-  -d '{"suspectId":"mara","question":"Where were you between 9:10 and 9:18?"}' \
+  -d '{"suspectId":"mara","question":"Where were you around the time of death?"}' \
   http://localhost:3000/api/ask
 ```
 

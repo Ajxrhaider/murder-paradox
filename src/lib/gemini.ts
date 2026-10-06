@@ -41,33 +41,46 @@ function getClient(): GoogleGenAI {
   return aiClient;
 }
 
+function falseAlibiId(witness: HiddenWitness): string | undefined {
+  return witness.claims[0]?.id;
+}
+
 function fallbackSelection(
   witness: HiddenWitness,
   question: string,
 ): WitnessSelection {
   if (witness.truthStatus === "liar") {
-    return { claimIds: ["timeline"], tone: "guarded" };
+    const id = falseAlibiId(witness);
+    return { claimIds: id ? [id] : [], tone: "guarded" };
   }
 
   const normalized = question.toLowerCase();
   const ids: string[] = [];
+  const topics = new Set<string>();
 
-  if (/where|when|time|alibi|between|\b9:1[0-8]\b|timeline/.test(normalized)) {
-    ids.push("timeline");
+  if (/\b(?:where|when|what time|time|alibi|between|during|before|after|location|place|timeline|whereabouts)\b/.test(normalized)) {
+    topics.add("timeline");
   }
-  if (/poison|tea|cup|enter|entered|orchid house|kill|murder|guilty|did you/.test(normalized)) {
-    ids.push("action");
+  if (/\b(?:why|motive|relationship|relation|threat|argument|reason|revenge|benefit)\b/.test(normalized)) {
+    topics.add("motive");
   }
-  if (/who|saw|see|hatch|service|carry|carried|corridor|other suspect/.test(normalized)) {
-    ids.push("observation");
+  const asksAboutObservation = /\b(?:who|saw|see|seen|witness|notice|noticed|observe|observed|carry|carried|bring|brought|walk|movement|identify|person)\b/.test(normalized);
+  if (
+    /\b(?:how|handle|handled|touch|touched|enter|entered|cause|method|weapon|poison|kill|killed|murder|responsible|equipment|tool|mechanism)\b/.test(normalized) ||
+    (/\b(?:did you|do you)\b/.test(normalized) && !asksAboutObservation)
+  ) {
+    topics.add("action");
   }
-  if (/why|motive|relationship|threat|argument|reason/.test(normalized)) {
-    ids.push("motive");
+  if (asksAboutObservation) {
+    topics.add("observation");
   }
 
-  const allowed = new Set(witness.claims.map((claim) => claim.id));
+  for (const claim of witness.claims) {
+    if (topics.has(claim.topic)) ids.push(claim.id);
+  }
+
   return {
-    claimIds: [...new Set(ids)].filter((id) => allowed.has(id)).slice(0, 2),
+    claimIds: [...new Set(ids)].slice(0, 2),
     tone: "guarded",
   };
 }
@@ -96,7 +109,8 @@ function parseSelection(
       : "guarded";
 
     if (witness.truthStatus === "liar") {
-      return { claimIds: ["timeline"], tone };
+      const id = falseAlibiId(witness);
+      return { claimIds: id ? [id] : [], tone };
     }
 
     return { claimIds, tone };

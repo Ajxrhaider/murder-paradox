@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "verify:cases": "node scripts/verify-generated-cases.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.27.0",
